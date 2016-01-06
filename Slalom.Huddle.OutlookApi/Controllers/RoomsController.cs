@@ -43,7 +43,8 @@ namespace Slalom.Huddle.OutlookApi.Controllers
                 // Get the availability of the room.
                 var result = service.GetUserAvailability(new[] { attendee }, timeWindow, availabilityData, availabilityOptions);
 
-                // See if there are any rooms that have this block of time cleared.
+                // See if there are any rooms that have this block of time cleared. Credit to Brett Moquin
+                // for the proper search criteria!
                 DateTime utcTime = DateTime.Now.ToUniversalTime();
                 bool available = !(from n in result.AttendeesAvailability[0].CalendarEvents
                                  where (n.StartTime < utcTime && n.EndTime > utcTime) ||
