@@ -1,60 +1,80 @@
 ﻿using Microsoft.Exchange.WebServices.Data;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Net;
 using System.Web.Http;
 using System.Linq;
 using System;
 
+using Slalom.Huddle.OutlookApi.Models;
+using Slalom.Huddle.OutlookApi.Services;
+
 namespace Slalom.Huddle.OutlookApi.Controllers
 {
     public class RoomsController : ApiController
     {
-        // SET THESE AS A TEST UNTIL ENCODING IS IN PLACE
-        private const string email = "notexist@slalom.com";
-        private const string password = "notapassword";
+        private const int defaultMinimumPeople = 2;
         private const int defaultMeetingDuration = 30;
+        private const int defaultPreferredFloor = 15;
+        private ExchangeService service;
+        private string emailAccount;
+
+        public ServiceGenerator ServiceGenerator { get; private set; }
+
+        public RoomLoader RoomLoader { get; private set; }
+
+        public RoomsController()
+        {
+            // Values from the config file
+            this.emailAccount = ConfigurationManager.AppSettings["emailAccount"];
+            string password = ConfigurationManager.AppSettings["accountPassword"];
+
+            // Create a service generator and give us an authenticated service.
+            ServiceGenerator = new ServiceGenerator();
+            this.service = ServiceGenerator.GenerateService(emailAccount, password);
+
+            // Initailize a room loader with the service and service account.
+            RoomLoader = new RoomLoader(service, emailAccount);
+        }
 
         // GET api/values
-        public IEnumerable<string> Get()
+        public IHttpActionResult Get(
+            int minimumPeople = defaultMinimumPeople,
+            int duration = defaultMeetingDuration, 
+            int preferredFloor = defaultPreferredFloor)
         {
-            // Set up the exchange service for UTC
-            ExchangeService service = new ExchangeService(TimeZoneInfo.Utc);
-
-            // Create network credentials and specify the public office 365 URL
-            service.Credentials = new NetworkCredential(email, password);
-            service.Url = new Uri("https://outlook.office365.com/EWS/Exchange.asmx");
-
-            // For test output, here's a list of strings!
-            List<string> strings = new List<string>();
-
-            // For each room in the Seattle conference address...
-            foreach (var room in service.GetRooms("Slalom--SeattleConferenceRooms@slalom.com"))
+            try
             {
-                // .. Create an attendee and a time window, which has to be at least 1 day.
-                AttendeeInfo attendee = new AttendeeInfo(room.Address);
-                TimeWindow timeWindow = new TimeWindow(DateTime.Now.ToUniversalTime().Date, DateTime.Now.ToUniversalTime().Date.AddDays(1));
+                // Use the service to load all of the rooms
+                List<Room> rooms = RoomLoader.LoadRooms(preferredFloor);
 
-                // We want to know if the room is free or busy.
-                AvailabilityData availabilityData = AvailabilityData.FreeBusy;
-                AvailabilityOptions availabilityOptions = new AvailabilityOptions();
-                attendee.ExcludeConflicts = false;
-                attendee.AttendeeType = MeetingAttendeeType.Organizer;
+                // Use the service to load the schedule of all the rooms
+                RoomLoader.LoadRoomSchedule(rooms, duration);
 
-                // Get the availability of the room.
-                var result = service.GetUserAvailability(new[] { attendee }, timeWindow, availabilityData, availabilityOptions);
+                // Find the first available room that supports the number of people.
+                Room selectedRoom = rooms.FirstOrDefault(n => n.Available && n.RoomInfo.MaxPeople >= minimumPeople);
+                if (selectedRoom == null)
+                {
+                    return NotFound();
+                }
 
-                // See if there are any rooms that have this block of time cleared. Credit to Brett Moquin
-                // for the proper search criteria!
-                DateTime utcTime = DateTime.Now.ToUniversalTime();
-                bool available = !(from n in result.AttendeesAvailability[0].CalendarEvents
-                                 where (n.StartTime < utcTime && n.EndTime > utcTime) ||
-                                 (n.StartTime > utcTime && n.StartTime < utcTime.AddMinutes(defaultMeetingDuration))
-                                   select n).Any();
+                // Acquire the meeting room for the duration.
+                Appointment meeting = RoomLoader.AcquireMeetingRoom(selectedRoom, duration);
 
-                strings.Add(string.Format("{0} - {1}: {2}", room.Name, room.Address, available ? "Available" : "NOPE"));
+                // Verify that the meeting was created by matching the subject.
+                Item item = Item.Bind(service, meeting.Id, new PropertySet(ItemSchema.Subject));
+                if (item.Subject != meeting.Subject)
+                {
+                    return StatusCode(HttpStatusCode.ServiceUnavailable);
+                }
+
+                // Return a 200
+                return Ok(meeting.Body);
             }
-
-            return strings.ToArray();
-        }        
+            catch (Exception exception)
+            {
+                return InternalServerError(exception);
+            }
+        }
     }
 }

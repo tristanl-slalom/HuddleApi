@@ -111,7 +111,7 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />
-    <Folder Include="Models\" />
+    <Folder Include="Service References\Application Insights\" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="WebActivatorEx">
@@ -134,7 +134,9 @@
     <Content Include="Global.asax" />
     <Content Include="scripts\ai.0.15.0-build58334.js" />
     <Content Include="scripts\ai.0.15.0-build58334.min.js" />
-    <Content Include="Web.config" />
+    <Content Include="Web.config">
+      <SubType>Designer</SubType>
+    </Content>
     <Content Include="Metadata\deploymentTemplates\apiappconfig.azureresource.json" />
     <Content Include="packages.config" />
     <Content Include="ApplicationInsights.config">
@@ -145,6 +147,10 @@
   <ItemGroup>
     <Compile Include="App_Start\SwaggerConfig.cs" />
     <Compile Include="App_Start\WebApiConfig.cs" />
+    <Compile Include="Services\RoomLoader.cs" />
+    <Compile Include="Services\ServiceGenerator.cs" />
+    <Compile Include="Models\Room.cs" />
+    <Compile Include="Models\RoomInfo.cs" />
     <Compile Include="Controllers\RoomsController.cs" />
     <Compile Include="Controllers\ValuesController.cs" />
     <Compile Include="Global.asax.cs">
@@ -154,8 +160,9 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="apiapp.json" />
-    <Content Include="Service References\Application Insights\ConnectedService.json" />
     <None Include="Properties\PublishProfiles\Slalom.Huddle.OutlookApi%28SlalomHuddleOutlookApiResourceGroup%29.pubxml" />
+    <None Include="Properties\PublishProfiles\SlalomHuddleOutlookApi - FTP.pubxml" />
+    <None Include="Properties\PublishProfiles\SlalomHuddleOutlookApi - Web Deploy.pubxml" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>
