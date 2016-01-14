@@ -73,7 +73,7 @@ namespace Slalom.Huddle.OutlookApi.Controllers
             }
             catch (Exception exception)
             {
-                return InternalServerError(exception);
+                return Ok("I'm sorry, there appears to be a problem with the service. Make sure that authorization credentials have been loaded into the service configuration.");
             }
         }
     }
