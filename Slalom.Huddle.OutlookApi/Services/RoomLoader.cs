@@ -99,7 +99,7 @@ namespace Slalom.Huddle.OutlookApi.Services
         {
             Appointment meeting = new Appointment(service);
             meeting.Subject = "Group Huddle";
-            meeting.Body = $"{selectedRoom.RoomInfo.Name} on floor {selectedRoom.RoomInfo.Floor}, which supports up to {selectedRoom.RoomInfo.MaxPeople} people, was scheduled by the Huddle App for Amazon Echo at {DateTime.Now.ToLocalTime()}";
+            meeting.Body = $"I have scheduled '{selectedRoom.RoomInfo.Name}' for you on floor {selectedRoom.RoomInfo.Floor} for the next {duration} minutes";
             meeting.Start = DateTime.Now.ToLocalTime();
             meeting.End = meeting.Start.AddMinutes(duration);
             meeting.Location = $"{selectedRoom.RoomInfo.Name} on Floor {selectedRoom.RoomInfo.Floor}";

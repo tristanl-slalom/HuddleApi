@@ -55,7 +55,7 @@ namespace Slalom.Huddle.OutlookApi.Controllers
                 Room selectedRoom = rooms.FirstOrDefault(n => n.Available && n.RoomInfo.MaxPeople >= minimumPeople);
                 if (selectedRoom == null)
                 {
-                    return NotFound();
+                    return Ok("I'm sorry, there are no rooms available for you right now. Try again another time!");
                 }
 
                 // Acquire the meeting room for the duration.
