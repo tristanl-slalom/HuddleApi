@@ -1,1 +1,1 @@
-# BattleShip
+# Huddle API
