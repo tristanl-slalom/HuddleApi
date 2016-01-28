@@ -13,9 +13,9 @@ namespace Slalom.Huddle.OutlookApi.Controllers
 {
     public class RoomsController : ApiController
     {
-        private const int defaultMinimumPeople = 2;
-        private const int defaultMeetingDuration = 30;
-        private const int defaultPreferredFloor = 15;
+        public const int DefaultMinimumPeople = 2;
+        public const int DefaultMeetingDuration = 30;
+        public const int DefaultPreferredFloor = 15;
         private ExchangeService service;
         private string emailAccount;
 
@@ -39,9 +39,10 @@ namespace Slalom.Huddle.OutlookApi.Controllers
 
         // GET api/values
         public IHttpActionResult Get(
-            int minimumPeople = defaultMinimumPeople,
-            int duration = defaultMeetingDuration, 
-            int preferredFloor = defaultPreferredFloor)
+            int minimumPeople = DefaultMinimumPeople,
+            int duration = DefaultMeetingDuration, 
+            int preferredFloor = DefaultPreferredFloor,
+            string command = "")
         {
             try
             {
@@ -55,25 +56,25 @@ namespace Slalom.Huddle.OutlookApi.Controllers
                 Room selectedRoom = rooms.FirstOrDefault(n => n.Available && n.RoomInfo.MaxPeople >= minimumPeople);
                 if (selectedRoom == null)
                 {
-                    return Ok("I'm sorry, there are no rooms available for you right now. Try again another time!");
+                    return Ok(new { Text = "I'm sorry, there are no rooms available for you right now. Try again another time!" });
                 }
 
                 // Acquire the meeting room for the duration.
-                Appointment meeting = RoomLoader.AcquireMeetingRoom(selectedRoom, duration);
+                Appointment meeting = RoomLoader.AcquireMeetingRoom(selectedRoom, duration, preferredFloor, command);
 
                 // Verify that the meeting was created by matching the subject.
-                Item item = Item.Bind(service, meeting.Id, new PropertySet(ItemSchema.Subject));
-                if (item.Subject != meeting.Subject)
-                {
-                    return StatusCode(HttpStatusCode.ServiceUnavailable);
-                }
+                //Item item = Item.Bind(service, meeting.Id, new PropertySet(ItemSchema.Subject));
+                //if (item.Subject != meeting.Subject)
+                //{
+                //    return StatusCode(HttpStatusCode.ServiceUnavailable);
+                //}
 
                 // Return a 200
                 return Ok(meeting.Body);
             }
             catch (Exception exception)
             {
-                return Ok("I'm sorry, there appears to be a problem with the service. Make sure that authorization credentials have been loaded into the service configuration.");
+                return Ok(new { Text = "I'm sorry, there appears to be a problem with the service. Make sure that authorization credentials have been loaded into the service configuration." + exception.Message });
             }
         }
     }

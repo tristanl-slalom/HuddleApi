@@ -4,6 +4,7 @@ using System.Linq;
 using System.Web;
 using Microsoft.Exchange.WebServices.Data;
 using Slalom.Huddle.OutlookApi.Models;
+using Slalom.Huddle.OutlookApi.Controllers;
 
 namespace Slalom.Huddle.OutlookApi.Services
 {
@@ -75,7 +76,10 @@ namespace Slalom.Huddle.OutlookApi.Services
             return attendee;
         }
 
-        private static void DetermineRoomAvailability(List<Room> rooms, GetUserAvailabilityResults result, int duration)
+        private static void DetermineRoomAvailability(List<Room> rooms,
+            GetUserAvailabilityResults result, 
+            int duration
+            )
         {
             DateTime utcTime = DateTime.Now.ToUniversalTime();
             if (rooms.Count != result.AttendeesAvailability.Count)
@@ -95,11 +99,20 @@ namespace Slalom.Huddle.OutlookApi.Services
             }
         }
 
-        public Appointment AcquireMeetingRoom(Room selectedRoom, int duration)
+        public Appointment AcquireMeetingRoom(Room selectedRoom, int duration, int requestedFloor, string command)
         {
             Appointment meeting = new Appointment(service);
             meeting.Subject = "Group Huddle";
-            meeting.Body = $"I have scheduled '{selectedRoom.RoomInfo.Name}' for you on floor {selectedRoom.RoomInfo.Floor} for the next {duration} minutes";
+            if (selectedRoom.RoomInfo.Floor == requestedFloor || requestedFloor == RoomsController.DefaultPreferredFloor)
+            {
+                CommandResponder responder = new CommandResponder();
+                string message = responder.CreateResponseForCommand(command, selectedRoom, duration, requestedFloor);
+                meeting.Body = message;
+            }
+            else
+            {
+                meeting.Body = $"I'm sorry, I couldn't find a room on floor {requestedFloor}, but I have scheduled '{selectedRoom.RoomInfo.Name}' for you on floor {selectedRoom.RoomInfo.Floor} for the next {duration} minutes";
+            }
             meeting.Start = DateTime.Now.ToLocalTime();
             meeting.End = meeting.Start.AddMinutes(duration);
             meeting.Location = $"{selectedRoom.RoomInfo.Name} on Floor {selectedRoom.RoomInfo.Floor}";
@@ -107,7 +120,7 @@ namespace Slalom.Huddle.OutlookApi.Services
             meeting.RequiredAttendees.Add(serviceAccount);
 
             // Save the meeting to the Calendar folder and send the meeting request.
-            meeting.Save(SendInvitationsMode.SendToAllAndSaveCopy);
+            //meeting.Save(SendInvitationsMode.SendToAllAndSaveCopy);
             return meeting;
         }
     }
