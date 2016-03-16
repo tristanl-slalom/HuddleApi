@@ -111,7 +111,8 @@ namespace Slalom.Huddle.OutlookApi.Services
             }
             else
             {
-                meeting.Body = $"I'm sorry, I couldn't find a room on floor {requestedFloor}, but I have scheduled '{selectedRoom.RoomInfo.Name}' for you on floor {selectedRoom.RoomInfo.Floor} NEW DURATION HERE";
+                string timeAsString = endDate.ToShortTimeString();
+                meeting.Body = $"I'm sorry, I couldn't find a room on floor {requestedFloor}, but I have scheduled '{selectedRoom.RoomInfo.Name}' for you on floor {selectedRoom.RoomInfo.Floor} until {timeAsString}";
             }
             meeting.Start = DateTime.Now.ToLocalTime();
             meeting.End = endDate;
