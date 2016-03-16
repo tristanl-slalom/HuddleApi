@@ -8,20 +8,21 @@ namespace Slalom.Huddle.OutlookApi.Services
     {
         private string command;
 
-        public string CreateResponseForCommand(string command, Room selectedRoom, int duration, int requestedFloor)
+        public string CreateResponseForCommand(string command, Room selectedRoom, DateTime endDate, int requestedFloor)
         {
+            var endDateAsTime = endDate.ToShortTimeString();
             this.command = command;
             if (Contains("set us up the"))
             {
-                return $"All your '{selectedRoom.RoomInfo.Name}' are belong to you for the next {duration} minutes";
+                return $"All your '{selectedRoom.RoomInfo.Name}' are belong to you until {endDateAsTime}";
             }
             else if (ContainsSwearWords())
             {
-                return $"I have scheduled '{selectedRoom.RoomInfo.Name}' for you on floor {selectedRoom.RoomInfo.Floor} for the next {duration} minutes despite your potty mouth.";
+                return $"I have scheduled '{selectedRoom.RoomInfo.Name}' for you on floor {selectedRoom.RoomInfo.Floor} until {endDateAsTime} despite your potty mouth.";
             }
             else
             {
-                return $"I have scheduled '{selectedRoom.RoomInfo.Name}' for you on floor {selectedRoom.RoomInfo.Floor} for the next {duration} minutes";
+                return $"I have scheduled '{selectedRoom.RoomInfo.Name}' for you on floor {selectedRoom.RoomInfo.Floor} until {endDateAsTime}";
             }
         }
 

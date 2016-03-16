@@ -148,6 +148,7 @@
     <Compile Include="App_Start\SwaggerConfig.cs" />
     <Compile Include="App_Start\WebApiConfig.cs" />
     <Compile Include="Services\CommandResponder.cs" />
+    <Compile Include="Services\DurationAdjuster.cs" />
     <Compile Include="Services\RoomLoader.cs" />
     <Compile Include="Services\ServiceGenerator.cs" />
     <Compile Include="Models\Room.cs" />

@@ -13,15 +13,18 @@ namespace Slalom.Huddle.OutlookApi.Controllers
 {
     public class RoomsController : ApiController
     {
-        public const int DefaultMinimumPeople = 2;
+        public const int DefaultMinimumPeople = 3;
         public const int DefaultMeetingDuration = 30;
         public const int DefaultPreferredFloor = 15;
+        public const string SuccessAudioUrl = "https://s3.amazonaws.com/uploads.hipchat.com/41664/1050651/vXTXicIkfZ8M0BI/success_short.mp3";
         private ExchangeService service;
         private string emailAccount;
 
         public ServiceGenerator ServiceGenerator { get; private set; }
 
         public RoomLoader RoomLoader { get; private set; }
+
+        public DurationAdjuster DurationAdjuster { get; private set; }
 
         public RoomsController()
         {
@@ -35,6 +38,7 @@ namespace Slalom.Huddle.OutlookApi.Controllers
 
             // Initailize a room loader with the service and service account.
             RoomLoader = new RoomLoader(service, emailAccount);
+            DurationAdjuster = new DurationAdjuster();
         }
 
         // GET api/values
@@ -46,35 +50,31 @@ namespace Slalom.Huddle.OutlookApi.Controllers
         {
             try
             {
+                DateTime endDate = DurationAdjuster.ExtendDurationToNearestBlock(duration);
                 // Use the service to load all of the rooms
                 List<Room> rooms = RoomLoader.LoadRooms(preferredFloor);
 
                 // Use the service to load the schedule of all the rooms
-                RoomLoader.LoadRoomSchedule(rooms, duration);
+                RoomLoader.LoadRoomSchedule(rooms, endDate);
 
                 // Find the first available room that supports the number of people.
                 Room selectedRoom = rooms.FirstOrDefault(n => n.Available && n.RoomInfo.MaxPeople >= minimumPeople);
                 if (selectedRoom == null)
                 {
-                    return Ok(new { Text = "I'm sorry, there are no rooms available for you right now. Try again another time!" });
+                    return Ok(new { Text = RoomLoader.Wrap("I'm sorry, there are no rooms available for you right now. Try again another time!") });
                 }
 
                 // Acquire the meeting room for the duration.
-                Appointment meeting = RoomLoader.AcquireMeetingRoom(selectedRoom, duration, preferredFloor, command);
+                Appointment meeting = RoomLoader.AcquireMeetingRoom(selectedRoom, endDate, preferredFloor, command);
 
                 // Verify that the meeting was created by matching the subject.
-                //Item item = Item.Bind(service, meeting.Id, new PropertySet(ItemSchema.Subject));
-                //if (item.Subject != meeting.Subject)
-                //{
-                //    return StatusCode(HttpStatusCode.ServiceUnavailable);
-                //}
 
                 // Return a 200
-                return Ok(meeting.Body);
+                return Ok(new { Text = RoomLoader.Wrap(meeting.Body, SuccessAudioUrl) });
             }
             catch (Exception exception)
             {
-                return Ok(new { Text = "I'm sorry, there appears to be a problem with the service. Make sure that authorization credentials have been loaded into the service configuration." + exception.Message });
+                return Ok(new { Text = RoomLoader.Wrap("I'm sorry, there appears to be a problem with the service. Make sure that authorization credentials have been loaded into the service configuration.") });
             }
         }
     }
