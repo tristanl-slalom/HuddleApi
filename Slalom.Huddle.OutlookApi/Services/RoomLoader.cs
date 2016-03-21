@@ -99,7 +99,7 @@ namespace Slalom.Huddle.OutlookApi.Services
             }
         }
 
-        public Appointment AcquireMeetingRoom(Room selectedRoom, DateTime endDate, int requestedFloor, string command)
+        public Appointment AcquireMeetingRoom(Room selectedRoom, DateTime startDate, DateTime endDate, int requestedFloor, string command)
         {
             Appointment meeting = new Appointment(service);
             meeting.Subject = "Group Huddle";
@@ -114,7 +114,8 @@ namespace Slalom.Huddle.OutlookApi.Services
                 string timeAsString = endDate.ToShortTimeString();
                 meeting.Body = $"I'm sorry, I couldn't find a room on floor {requestedFloor}, but I have scheduled '{selectedRoom.RoomInfo.Name}' for you on floor {selectedRoom.RoomInfo.Floor} until {timeAsString}";
             }
-            meeting.Start = DateTime.Now.ToLocalTime();
+            
+            meeting.Start = startDate;
             meeting.End = endDate;
             meeting.Location = $"{selectedRoom.RoomInfo.Name} on Floor {selectedRoom.RoomInfo.Floor}";
             meeting.RequiredAttendees.Add(selectedRoom.AttendeeInfo.SmtpAddress);

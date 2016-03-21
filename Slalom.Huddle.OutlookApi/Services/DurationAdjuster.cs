@@ -7,10 +7,10 @@ namespace Slalom.Huddle.OutlookApi.Services
 {
     public class DurationAdjuster
     {
-        public DateTime ExtendDurationToNearestBlock(int duration)
+        public DateTime ExtendDurationToNearestBlock(DateTime startDate, int duration)
         {
             // Figure out what current end date would be with existing duration.
-            DateTime endDate = DateTime.Now.AddMinutes(duration);
+            DateTime endDate = startDate.AddMinutes(duration);
 
             // If end date ends at a 15 minute increment of time (00, 15, 30, 45) then call duration good and return.
             if (endDate.Minute % 15 == 0)

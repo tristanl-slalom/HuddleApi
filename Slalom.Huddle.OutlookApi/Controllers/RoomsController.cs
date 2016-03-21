@@ -16,6 +16,7 @@ namespace Slalom.Huddle.OutlookApi.Controllers
         public const int DefaultMinimumPeople = 3;
         public const int DefaultMeetingDuration = 30;
         public const int DefaultPreferredFloor = 15;
+
         public const string SuccessAudioUrl = "https://s3.amazonaws.com/uploads.hipchat.com/41664/1050651/vXTXicIkfZ8M0BI/success_short.mp3";
         private ExchangeService service;
         private string emailAccount;
@@ -46,11 +47,20 @@ namespace Slalom.Huddle.OutlookApi.Controllers
             int minimumPeople = DefaultMinimumPeople,
             int duration = DefaultMeetingDuration, 
             int preferredFloor = DefaultPreferredFloor,
+            String startTime = null,
             string command = "")
         {
             try
             {
-                DateTime endDate = DurationAdjuster.ExtendDurationToNearestBlock(duration);
+                // AMAZON.TIME – converts words that indicate time (“four in the morning”, “two p m”) into a time value (“04:00”, “14:00”).
+                DateTime startDate = DateTime.Now.ToLocalTime();
+                if (!String.IsNullOrEmpty(startTime))
+                {
+                    startDate = DateTime.ParseExact(startTime, "H:mm", null, System.Globalization.DateTimeStyles.None);
+                } 
+                
+                DateTime endDate = DurationAdjuster.ExtendDurationToNearestBlock(startDate, duration);
+                throw new Exception("Atest");
                 // Use the service to load all of the rooms
                 List<Room> rooms = RoomLoader.LoadRooms(preferredFloor);
 
@@ -65,7 +75,7 @@ namespace Slalom.Huddle.OutlookApi.Controllers
                 }
 
                 // Acquire the meeting room for the duration.
-                Appointment meeting = RoomLoader.AcquireMeetingRoom(selectedRoom, endDate, preferredFloor, command);
+                Appointment meeting = RoomLoader.AcquireMeetingRoom(selectedRoom, startDate, endDate, preferredFloor, command);
 
                 // Verify that the meeting was created by matching the subject.
 
