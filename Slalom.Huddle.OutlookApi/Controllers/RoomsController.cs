@@ -58,9 +58,14 @@ namespace Slalom.Huddle.OutlookApi.Controllers
                 if (!String.IsNullOrEmpty(startTime))
                 {
                     // startTime will be in the form of = 04:00 or 14:00 (military time)
-                    startDate = DateTime.ParseExact(startTime, "H:mm", null, System.Globalization.DateTimeStyles.None);
+                    var startTimeChunk = startTime.Split(":".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
 
-                    // verify that startDate is in the past
+                    // set the hour and minute part while keeping the date to current date
+                    TimeSpan hourMinutes = new TimeSpan(int.Parse(startTimeChunk[0]), int.Parse(startTimeChunk[1]), 0);
+                    startDate = startDate.Date + hourMinutes;
+
+                    // verify that startDate is NOT in the past. Huddle API is only allowing to request room for current day, 
+                    // users are allowed to request rooms sometime in the future as long as it is still today.
                     if (startDate < currentDateTime)
                     {
                         return Ok(new { Text = RoomLoader.Wrap("I'm sorry, there are no rooms available for you right now. Try again another time!") });
