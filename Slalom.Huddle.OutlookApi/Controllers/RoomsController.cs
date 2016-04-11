@@ -52,20 +52,28 @@ namespace Slalom.Huddle.OutlookApi.Controllers
         {
             try
             {
-                // AMAZON.TIME – converts words that indicate time (“four in the morning”, “two p m”) into a time value (“04:00”, “14:00”).
-                DateTime startDate = DateTime.Now.ToLocalTime();
+                DateTime currentDateTime = DateTime.Now.ToLocalTime();
+                DateTime startDate = currentDateTime;
+
                 if (!String.IsNullOrEmpty(startTime))
                 {
+                    // startTime will be in the form of = 04:00 or 14:00 (military time)
                     startDate = DateTime.ParseExact(startTime, "H:mm", null, System.Globalization.DateTimeStyles.None);
-                } 
-                
+
+                    // verify that startDate is in the past
+                    if (startDate < currentDateTime)
+                    {
+                        return Ok(new { Text = RoomLoader.Wrap("I'm sorry, there are no rooms available for you right now. Try again another time!") });
+                    }                
+                }
+
                 DateTime endDate = DurationAdjuster.ExtendDurationToNearestBlock(startDate, duration);
-                throw new Exception("Atest");
+
                 // Use the service to load all of the rooms
                 List<Room> rooms = RoomLoader.LoadRooms(preferredFloor);
 
                 // Use the service to load the schedule of all the rooms
-                RoomLoader.LoadRoomSchedule(rooms, endDate);
+                RoomLoader.LoadRoomSchedule(rooms, startDate, endDate);
 
                 // Find the first available room that supports the number of people.
                 Room selectedRoom = rooms.FirstOrDefault(n => n.Available && n.RoomInfo.MaxPeople >= minimumPeople);

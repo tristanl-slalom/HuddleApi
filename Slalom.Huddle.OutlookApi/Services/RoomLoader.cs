@@ -45,9 +45,10 @@ namespace Slalom.Huddle.OutlookApi.Services
             return rooms;
         }
 
-        public GetUserAvailabilityResults LoadRoomSchedule(List<Room> rooms, DateTime endDate)
+        public GetUserAvailabilityResults LoadRoomSchedule(List<Room> rooms, DateTime startDate, DateTime endDate)
         {
-            TimeWindow timeWindow = new TimeWindow(DateTime.Now.ToUniversalTime().Date, DateTime.Now.ToUniversalTime().Date.AddDays(1));
+            //TimeWindow timeWindow = new TimeWindow(DateTime.Now.ToUniversalTime().Date, DateTime.Now.ToUniversalTime().Date.AddDays(1));
+            TimeWindow timeWindow = new TimeWindow(startDate.ToUniversalTime().Date, startDate.ToUniversalTime().Date.AddDays(1));
 
             // We want to know if the room is free or busy.
             AvailabilityData availabilityData = AvailabilityData.FreeBusy;
@@ -63,7 +64,7 @@ namespace Slalom.Huddle.OutlookApi.Services
                                                      availabilityOptions);
 
             // Use the schedule to determine if a room is available for the next
-            DetermineRoomAvailability(rooms, result, endDate);
+            DetermineRoomAvailability(rooms, result, startDate, endDate);
             return result;
         }
 
@@ -77,11 +78,13 @@ namespace Slalom.Huddle.OutlookApi.Services
         }
 
         private static void DetermineRoomAvailability(List<Room> rooms,
-            GetUserAvailabilityResults result, 
+            GetUserAvailabilityResults result, DateTime startDate,
             DateTime endDate
             )
         {
-            DateTime utcTime = DateTime.Now.ToUniversalTime();
+            //DateTime utcTime = DateTime.Now.ToUniversalTime();
+            DateTime utcTime = startDate.ToUniversalTime();
+
             if (rooms.Count != result.AttendeesAvailability.Count)
             {
                 throw new Exception($"The number of known rooms ({rooms.Count}) did not match the number of availabilities ({result.AttendeesAvailability.Count}).");
