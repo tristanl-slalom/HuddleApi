@@ -4,6 +4,7 @@ using System.Linq;
 using System.Web;
 using Microsoft.Exchange.WebServices.Data;
 using Slalom.Huddle.OutlookApi.Models;
+using Slalom.Huddle.OutlookApi.Controllers;
 
 namespace Slalom.Huddle.OutlookApi.Services
 {
@@ -44,9 +45,10 @@ namespace Slalom.Huddle.OutlookApi.Services
             return rooms;
         }
 
-        public GetUserAvailabilityResults LoadRoomSchedule(List<Room> rooms, int duration)
+        public GetUserAvailabilityResults LoadRoomSchedule(List<Room> rooms, DateTime startDate, DateTime endDate)
         {
-            TimeWindow timeWindow = new TimeWindow(DateTime.Now.ToUniversalTime().Date, DateTime.Now.ToUniversalTime().Date.AddDays(1));
+            //TimeWindow timeWindow = new TimeWindow(DateTime.Now.ToUniversalTime().Date, DateTime.Now.ToUniversalTime().Date.AddDays(1));
+            TimeWindow timeWindow = new TimeWindow(startDate.ToUniversalTime().Date, startDate.ToUniversalTime().Date.AddDays(1));
 
             // We want to know if the room is free or busy.
             AvailabilityData availabilityData = AvailabilityData.FreeBusy;
@@ -62,7 +64,7 @@ namespace Slalom.Huddle.OutlookApi.Services
                                                      availabilityOptions);
 
             // Use the schedule to determine if a room is available for the next
-            DetermineRoomAvailability(rooms, result, duration);
+            DetermineRoomAvailability(rooms, result, startDate, endDate);
             return result;
         }
 
@@ -75,9 +77,14 @@ namespace Slalom.Huddle.OutlookApi.Services
             return attendee;
         }
 
-        private static void DetermineRoomAvailability(List<Room> rooms, GetUserAvailabilityResults result, int duration)
+        private static void DetermineRoomAvailability(List<Room> rooms,
+            GetUserAvailabilityResults result, DateTime startDate,
+            DateTime endDate
+            )
         {
-            DateTime utcTime = DateTime.Now.ToUniversalTime();
+            //DateTime utcTime = DateTime.Now.ToUniversalTime();
+            DateTime utcTime = startDate.ToUniversalTime();
+
             if (rooms.Count != result.AttendeesAvailability.Count)
             {
                 throw new Exception($"The number of known rooms ({rooms.Count}) did not match the number of availabilities ({result.AttendeesAvailability.Count}).");
@@ -90,18 +97,29 @@ namespace Slalom.Huddle.OutlookApi.Services
 
                 room.Available = !(from n in result.AttendeesAvailability[i].CalendarEvents
                                    where (n.StartTime < utcTime && n.EndTime > utcTime) ||
-                                   (n.StartTime > utcTime && n.StartTime < utcTime.AddMinutes(duration))
+                                   (n.StartTime > utcTime && n.StartTime < endDate.ToUniversalTime())
                                    select n).Any();
             }
         }
 
-        public Appointment AcquireMeetingRoom(Room selectedRoom, int duration)
+        public Appointment AcquireMeetingRoom(Room selectedRoom, DateTime startDate, DateTime endDate, int requestedFloor, string command)
         {
             Appointment meeting = new Appointment(service);
             meeting.Subject = "Group Huddle";
-            meeting.Body = $"I have scheduled '{selectedRoom.RoomInfo.Name}' for you on floor {selectedRoom.RoomInfo.Floor} for the next {duration} minutes";
-            meeting.Start = DateTime.Now.ToLocalTime();
-            meeting.End = meeting.Start.AddMinutes(duration);
+            if (selectedRoom.RoomInfo.Floor == requestedFloor || requestedFloor == RoomsController.DefaultPreferredFloor)
+            {
+                CommandResponder responder = new CommandResponder();
+                string message = responder.CreateResponseForCommand(command, selectedRoom, endDate, requestedFloor);
+                meeting.Body = message;
+            }
+            else
+            {
+                string timeAsString = endDate.ToShortTimeString();
+                meeting.Body = $"I'm sorry, I couldn't find a room on floor {requestedFloor}, but I have scheduled '{selectedRoom.RoomInfo.Name}' for you on floor {selectedRoom.RoomInfo.Floor} until {timeAsString}";
+            }
+            
+            meeting.Start = startDate;
+            meeting.End = endDate;
             meeting.Location = $"{selectedRoom.RoomInfo.Name} on Floor {selectedRoom.RoomInfo.Floor}";
             meeting.RequiredAttendees.Add(selectedRoom.AttendeeInfo.SmtpAddress);
             meeting.RequiredAttendees.Add(serviceAccount);
@@ -109,6 +127,12 @@ namespace Slalom.Huddle.OutlookApi.Services
             // Save the meeting to the Calendar folder and send the meeting request.
             meeting.Save(SendInvitationsMode.SendToAllAndSaveCopy);
             return meeting;
+        }
+
+        public static string Wrap(string message, string audioUrl = "")
+        {
+            string formattedUrl = audioUrl == "" ? "" : $"<audio src='{audioUrl}'/>";
+            return $"<speak>{formattedUrl}{message}</speak>";
         }
     }
 }

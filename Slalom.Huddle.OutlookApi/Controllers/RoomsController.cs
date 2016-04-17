@@ -13,15 +13,19 @@ namespace Slalom.Huddle.OutlookApi.Controllers
 {
     public class RoomsController : ApiController
     {
-        private const int defaultMinimumPeople = 2;
-        private const int defaultMeetingDuration = 30;
-        private const int defaultPreferredFloor = 15;
+        public const int DefaultMinimumPeople = 3;
+        public const int DefaultMeetingDuration = 30;
+        public const int DefaultPreferredFloor = 15;
+
+        public const string SuccessAudioUrl = "https://s3.amazonaws.com/uploads.hipchat.com/41664/1050651/vXTXicIkfZ8M0BI/success_short.mp3";
         private ExchangeService service;
         private string emailAccount;
 
         public ServiceGenerator ServiceGenerator { get; private set; }
 
         public RoomLoader RoomLoader { get; private set; }
+
+        public DurationAdjuster DurationAdjuster { get; private set; }
 
         public RoomsController()
         {
@@ -35,45 +39,65 @@ namespace Slalom.Huddle.OutlookApi.Controllers
 
             // Initailize a room loader with the service and service account.
             RoomLoader = new RoomLoader(service, emailAccount);
+            DurationAdjuster = new DurationAdjuster();
         }
 
         // GET api/values
         public IHttpActionResult Get(
-            int minimumPeople = defaultMinimumPeople,
-            int duration = defaultMeetingDuration, 
-            int preferredFloor = defaultPreferredFloor)
+            int minimumPeople = DefaultMinimumPeople,
+            int duration = DefaultMeetingDuration, 
+            int preferredFloor = DefaultPreferredFloor,
+            String startTime = null,
+            string command = "")
         {
             try
             {
+                DateTime currentDateTime = DateTime.Now.ToLocalTime();
+                DateTime startDate = currentDateTime;
+
+                if (!String.IsNullOrEmpty(startTime))
+                {
+                    // startTime will be in the form of = 04:00 or 14:00 (military time)
+                    var startTimeChunk = startTime.Split(":".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
+
+                    // set the hour and minute part while keeping the date to current date
+                    TimeSpan hourMinutes = new TimeSpan(int.Parse(startTimeChunk[0]), int.Parse(startTimeChunk[1]), 0);
+                    startDate = startDate.Date + hourMinutes;
+
+                    // verify that startDate is NOT in the past. Huddle API is only allowing to request room for current day, 
+                    // users are allowed to request rooms sometime in the future as long as it is still today.
+                    if (startDate < currentDateTime)
+                    {
+                        return Ok(new { Text = RoomLoader.Wrap("I'm sorry, there are no rooms available for you right now. Try again another time!") });
+                    }                
+                }
+
+                DateTime endDate = DurationAdjuster.ExtendDurationToNearestBlock(startDate, duration);
+
                 // Use the service to load all of the rooms
                 List<Room> rooms = RoomLoader.LoadRooms(preferredFloor);
 
                 // Use the service to load the schedule of all the rooms
-                RoomLoader.LoadRoomSchedule(rooms, duration);
+                RoomLoader.LoadRoomSchedule(rooms, startDate, endDate);
 
                 // Find the first available room that supports the number of people.
                 Room selectedRoom = rooms.FirstOrDefault(n => n.Available && n.RoomInfo.MaxPeople >= minimumPeople);
                 if (selectedRoom == null)
                 {
-                    return Ok("I'm sorry, there are no rooms available for you right now. Try again another time!");
+                    return Ok(new { Text = RoomLoader.Wrap("I'm sorry, there are no rooms available for you right now. Try again another time!") });
                 }
 
                 // Acquire the meeting room for the duration.
-                Appointment meeting = RoomLoader.AcquireMeetingRoom(selectedRoom, duration);
+                Appointment meeting = RoomLoader.AcquireMeetingRoom(selectedRoom, startDate, endDate, preferredFloor, command);
 
                 // Verify that the meeting was created by matching the subject.
-                Item item = Item.Bind(service, meeting.Id, new PropertySet(ItemSchema.Subject));
-                if (item.Subject != meeting.Subject)
-                {
-                    return StatusCode(HttpStatusCode.ServiceUnavailable);
-                }
 
                 // Return a 200
-                return Ok(meeting.Body);
+                return Ok(new { Text = RoomLoader.Wrap(meeting.Body, SuccessAudioUrl) });
             }
             catch (Exception exception)
             {
-                return Ok("I'm sorry, there appears to be a problem with the service. Make sure that authorization credentials have been loaded into the service configuration.");
+                return Ok(new { Text = RoomLoader.Wrap("I'm sorry, there appears to be a problem with the service. Make sure that authorization credentials have been loaded into the service configuration.") });
             }
         }
     }
